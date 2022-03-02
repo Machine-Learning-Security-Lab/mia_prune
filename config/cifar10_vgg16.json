@@ -1,0 +1,11 @@
+{
+    "dataset_name": "cifar10",
+    "model_name": "vgg16bn",
+    "epochs": 100,
+    "num_cls": 10,
+    "input_dim": 3,
+    "optimizer": "adam",
+    "lr": 0.001,
+    "weight_decay": 5e-4
+}
+

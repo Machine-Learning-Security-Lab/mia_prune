@@ -1,0 +1,10 @@
+{
+    "dataset_name": "location",
+    "model_name": "columnfc",
+    "epochs": 50,
+    "num_cls": 30,
+    "input_dim": 446,
+    "optimizer": "adam",
+    "lr": 0.001,
+    "weight_decay": 5e-4
+}

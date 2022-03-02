@@ -1,0 +1,10 @@
+{
+    "dataset_name": "purchase100",
+    "model_name": "columnfc",
+    "epochs": 50,
+    "num_cls": 100,
+    "input_dim": 600,
+    "optimizer": "adam",
+    "lr": 0.001,
+    "weight_decay": 5e-4
+}
