@@ -28,7 +28,7 @@ parser.add_argument('--prune_sparsity', default=0.7, type=float, help="prune spa
 parser.add_argument('--adaptive', action='store_true', help="use adaptive attack")
 parser.add_argument('--shadow_num', default=5, type=int)
 parser.add_argument('--defend', default='', type=str)
-parser.add_argument('--defend_arg', default=16, type=float)
+parser.add_argument('--defend_arg', default=4, type=float)
 parser.add_argument('--attacks', default="samia", type=str)
 parser.add_argument('--original', action='store_true', help="original=true, then launch attack against original model")
 

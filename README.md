@@ -16,7 +16,7 @@ We investigated the membership inference attacks (MIA) and the countermeasures i
 We proposed a membership inference attack, namely self-attention membership inference attack (SAMIA), 
 targeted at pruned neural networks, as well as a pair-based posterior balancing (PPB) defense method.
 
-# Installation.
+# Installation
 Get the repository:
 ```
 git clone https://github.com/Machine-Learning-Security-Lab/mia_prune
@@ -28,7 +28,7 @@ pip install -r requirements.txt
 ```
 Create a folder for storing datasets. The data folder location can be updated in `datasets.py`.
 ```
-mkdir -p data/dataset
+mkdir -p data/datasets
 ```
 Create a folder for storing the models.
 ```
@@ -104,11 +104,11 @@ python prune.py 0 config/cifar10_resnet18.json --defend ppb --defend_arg 4
 ```
 Attack the pruned model with defense using SAMIA.
 ```
-python mia.py 0 config/cifar10_resnet18.json--attacks samia --defend ppb --defend_arg 4
+python mia.py 0 config/cifar10_resnet18.json --attacks samia,threshold --defend ppb --defend_arg 4
 ```
 Attack the pruned model with defense using SAMIA when the attacker knows the defense, e.g., adaptive attack.
 ```
-python mia.py 0 config/cifar10_resnet18.json --attacks samia --defend ppb --defend_arg 4 ----adaptive
+python mia.py 0 config/cifar10_resnet18.json --attacks samia,threshold --defend ppb --defend_arg 4 ----adaptive
 ```
 Launch multiple attacks.
 ```

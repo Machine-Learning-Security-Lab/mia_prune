@@ -1,5 +1,6 @@
 torch==1.8.1
-torchvision==0.10.0
+torchvision==0.9.1
 tensorboard==2.5.0
 nni==2.2
-pillow=8.2.0
+pillow==8.2.0
+pandas

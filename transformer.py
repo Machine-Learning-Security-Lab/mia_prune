@@ -6,7 +6,6 @@ from torch import nn
 class Transformer(nn.Module):
     def __init__(self, input_dim=10, output_dim=2, hidden_dim=64, num_layers=3, nhead=4, dropout=0.2):
         super().__init__()
-        # self.embeds = nn.Embedding(input_dim, hidden_dim)
         self.bn = nn.BatchNorm1d(input_dim)
         self.length = input_dim // 3
         self.hidden_dim = hidden_dim

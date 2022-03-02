@@ -2,8 +2,6 @@
 This code is modified from https://github.com/inspire-group/membership-inference-evaluation
 """
 import numpy as np
-import math
-
 
 class ThresholdAttacker:
     def __init__(self, shadow_train_performance, shadow_test_performance,  target_train_performance,
@@ -85,9 +83,7 @@ class ThresholdAttacker:
             t_te_non_mem += t_te_non_mem_tmp
             tmp_acc = 0.5 * (t_tr_mem_tmp / (len(t_tr_values[self.t_tr_labels == num]) + 0.0) +
                              t_te_non_mem_tmp / (len(t_te_values[self.t_te_labels == num]) + 0.0))
-            # print(f"Class {num} acc: {tmp_acc}")
         mem_inf_acc = 0.5 * (t_tr_mem / (len(self.t_tr_labels) + 0.0) + t_te_non_mem / (len(self.t_te_labels) + 0.0))
-        # print('{n} acc: {acc:.3f}'.format(n=v_name, acc=mem_inf_acc))
         return mem_inf_acc
 
     def _mem_inf_thre_non_cls(self, v_name, s_tr_values, s_te_values, t_tr_values, t_te_values):
@@ -97,17 +93,10 @@ class ThresholdAttacker:
         thre = self._thre_setting(s_tr_values, s_te_values)
         t_tr_mem = np.sum(t_tr_values >= thre)
         t_te_non_mem = np.sum(t_te_values < thre)
-        # t_te_non_mem += t_te_non_mem_tmp
-        # tmp_acc = 0.5 * (t_tr_mem_tmp / (len(t_tr_values) + 0.0) +
-        #                  t_te_non_mem_tmp / (len(t_te_values) + 0.0))
-            # print(f"Class {num} acc: {tmp_acc}")
         mem_inf_acc = 0.5 * (t_tr_mem / (len(self.t_tr_labels) + 0.0) + t_te_non_mem / (len(self.t_te_labels) + 0.0))
-        # print('{n} acc: {acc:.3f}'.format(n=v_name, acc=mem_inf_acc))
         return mem_inf_acc
 
-    # def _mem_inf_benchmarks(self, all_methods=True, benchmark_methods=[]):
     def _mem_inf_benchmarks(self):
-        # result_correct = self._mem_inf_via_corr()
         confidence = \
             self._mem_inf_thre('confidence', self.s_tr_conf, self.s_te_conf, self.t_tr_conf, self.t_te_conf)
         entropy = \
@@ -126,14 +115,3 @@ class ThresholdAttacker:
             self._mem_inf_thre_non_cls('modified entropy', -self.s_tr_m_entr, -self.s_te_m_entr, -self.t_tr_m_entr,
                                -self.t_te_m_entr)
         return confidence, entropy, modentr
-
-
-        # if (all_methods) or ('correctness' in benchmark_methods):
-        #     self._mem_inf_via_corr()
-        # if (all_methods) or ('confidence' in benchmark_methods):
-        #     self._mem_inf_thre('confidence', self.s_tr_conf, self.s_te_conf, self.t_tr_conf, self.t_te_conf)
-        # if (all_methods) or ('entropy' in benchmark_methods):
-        #     self._mem_inf_thre('entropy', -self.s_tr_entr, -self.s_te_entr, -self.t_tr_entr, -self.t_te_entr)
-        # if (all_methods) or ('modified entropy' in benchmark_methods):
-        #     self._mem_inf_thre('modified entropy', -self.s_tr_m_entr, -self.s_te_m_entr, -self.t_tr_m_entr,
-        #                        -self.t_te_m_entr)

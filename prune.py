@@ -31,11 +31,11 @@ parser.add_argument('--weight_decay', default=5e-4, type=float)
 parser.add_argument('--optimizer', default="adam", type=str)
 parser.add_argument('--prune_epochs', default=50, type=int)
 parser.add_argument('--pruner_name', default='l1unstructure', type=str)
-parser.add_argument('--prune_sparsity', default=0.8, type=float)
+parser.add_argument('--prune_sparsity', default=0.7, type=float)
 parser.add_argument('--defend', default="", type=str, help="'' if no defense, else ppb")
 parser.add_argument('--adaptive', action='store_true')
 parser.add_argument('--shadow_num', default=5, type=int)
-parser.add_argument('--defend_arg', default=16, type=float)
+parser.add_argument('--defend_arg', default=4, type=float)
 
 
 def main(args):
@@ -117,7 +117,7 @@ def main(args):
         pruner.update_epoch(epoch)
         if args.defend == "":
             train_acc, train_loss = victim_pruned_model.train(victim_train_loader, f"Epoch {epoch} Prune Train")
-        if args.defend == "ppb":
+        elif args.defend == "ppb":
             train_acc, train_loss = victim_pruned_model.train_defend_ppb(
                 victim_train_loader, log_pref=f"Epoch {epoch} Victim Prune Train With PPB", defend_arg=args.defend_arg)
         dev_acc, dev_loss = victim_pruned_model.test(victim_dev_loader, f"Epoch {epoch} Prune Dev")
@@ -179,15 +179,11 @@ def main(args):
             if args.defend == "":
                 train_acc, train_loss = shadow_pruned_model.train(
                     attack_train_loader, f"Epoch {epoch} Shadow Prune Train")
-            else:
-                train_acc, train_loss = shadow_pruned_model.train_defend(
-                    attack_train_loader, f"Epoch {epoch} Shadow Prune Train with Defense",
-                    defend=args.defend, defend_arg=args.defend_arg)
+            elif args.defend == "ppb":
+                train_acc, train_loss = shadow_pruned_model.train_defend_ppb(
+                    attack_train_loader, f"Epoch {epoch} Shadow Prune Train With PPB", defend_arg=args.defend_arg)
             dev_acc, dev_loss = shadow_pruned_model.test(attack_dev_loader, f"Epoch {epoch} Shadow Prune Dev")
             test_acc, test_loss = shadow_pruned_model.test(attack_test_loader, f"Epoch {epoch} Shadow Prune Test")
-            # train_acc, train_loss = shadow_pruned_model.train_defend(
-            #     epoch, attack_train_loader, defend=shadow_defend)
-            # test_acc, test_loss = shadow_pruned_model.test(epoch, attack_test_loader)
 
             if dev_acc > best_acc:
                 best_acc = dev_acc
