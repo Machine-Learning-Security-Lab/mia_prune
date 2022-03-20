@@ -10,7 +10,7 @@ from torch.utils.data import TensorDataset
 
 def get_dataset(name, train=True):
     print(f"Build Dataset {name}")
-    if name == "cifar10" or name == "cifar100":
+    if name == "cifar10":
         mean = (0.4914, 0.4822, 0.4465)
         std = (0.2023, 0.1994, 0.2010)
         transform = transforms.Compose([

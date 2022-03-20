@@ -4,3 +4,4 @@ tensorboard==2.5.0
 nni==2.2
 pillow==8.2.0
 pandas
+matplotlib

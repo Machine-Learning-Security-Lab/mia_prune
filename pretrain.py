@@ -98,9 +98,9 @@ def main(args):
         train_acc, train_loss = victim_model.train(victim_train_loader, f"Epoch {epoch} Train")
         dev_acc, dev_loss = victim_model.test(victim_dev_loader, f"Epoch {epoch} Dev")
         test_acc, test_loss = victim_model.test(victim_test_loader, f"Epoch {epoch} Test")
-        save_path = victim_model.save(epoch, test_acc, test_loss)
         if dev_acc > best_acc:
             best_acc = dev_acc
+            save_path = victim_model.save(epoch, test_acc, test_loss)
             best_path = save_path
             count = 0
         elif args.early_stop > 0:
@@ -108,7 +108,6 @@ def main(args):
             if count > args.early_stop:
                 print(f"Early Stop at Epoch {epoch}")
                 break
-    shutil.copyfile(save_path, f"{victim_model_save_folder}/last.pth")
     shutil.copyfile(best_path, f"{victim_model_save_folder}/best.pth")
 
     # Train shadow models
@@ -137,10 +136,9 @@ def main(args):
             train_acc, train_loss = shadow_model.train(attack_train_loader, f"Epoch {epoch} Shadow Train")
             dev_acc, dev_loss = shadow_model.test(attack_dev_loader, f"Epoch {epoch} Shadow Dev")
             test_acc, test_loss = shadow_model.test(attack_test_loader, f"Epoch {epoch} Shadow Test")
-
-            save_path = shadow_model.save(epoch, test_acc, test_loss)
             if dev_acc > best_acc:
                 best_acc = dev_acc
+                save_path = shadow_model.save(epoch, test_acc, test_loss)
                 best_path = save_path
                 count = 0
             elif args.early_stop > 0:
@@ -149,7 +147,6 @@ def main(args):
                     print(f"Early Stop at Epoch {epoch}")
                     break
 
-        shutil.copyfile(save_path, f"{shadow_model_save_folder}/last.pth")
         shutil.copyfile(best_path, f"{shadow_model_save_folder}/best.pth")
 
 

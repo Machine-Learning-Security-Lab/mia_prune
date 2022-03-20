@@ -52,8 +52,7 @@ python mia.py [GPU-ID] [config_path] --pruner_name [pruner_name] --prune_sparsit
 ```
 4. Conduct membership inference attacks on the original model.
 ```
-python mia.py [GPU-ID] [config_path] --pruner_name [pruner_name] --prune_sparsity [prune_sparsity] --attacks [attacks]
---original
+python mia.py [GPU-ID] [config_path] --attacks [attacks] --original
 ```
 
 ## Defenses
@@ -78,7 +77,13 @@ python mia.py [GPU-ID] [config_path] --pruner_name [pruner_name] --prune_sparsit
 - `pruner_name` can be `l1unstructure` (default), `l1structure`, `l2structure`, `slim`.
 - `prune_sparsity` can be any float values in (0, 1), default 0.7.
 - `attacks` can be `samia` (default), `threshold`, `nn`, `nn_top3`, `nn_cls`. Multiple attacks can be concatenated. 
-E.g., `--attacks samia,nn,nn_top3`.
+E.g., `--attacks samia,nn,nn_top3`. 
+`threshold` attack (modified from https://github.com/inspire-group/membership-inference-evaluation) 
+performs several threshold-based attacks including 
+  - Ground-truth class confidence-based threshold attack (Conf).
+  - Cross-entropy-based threshold attack (Xent).
+  - Modified-entropy-based threshold attack (Mentr).
+  - Top1 Confidence-based threshold attack (Top1-conf).
 - `defend` can be `""` (no defense, default) or `ppb` (PPB defense).
 
 # Examples
