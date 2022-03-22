@@ -7,12 +7,12 @@ import pickle
 import random
 import torch
 import torch.backends.cudnn as cudnn
-from torch.utils.data import ConcatDataset, DataLoader, Subset
+from torch.utils.data import ConcatDataset, DataLoader, Subset, TensorDataset
 from base_model import BaseModel
 from datasets import get_dataset
 from pruner import get_pruner
 from utils import seed_worker
-from pyvacy import optim, analysis
+from pyvacy import optim, analysis, sampling
 
 parser = argparse.ArgumentParser()
 parser.add_argument('device', default=0, type=int, help="GPU id to use")
@@ -33,10 +33,10 @@ parser.add_argument('--optimizer', default="adam", type=str)
 parser.add_argument('--prune_epochs', default=50, type=int)
 parser.add_argument('--pruner_name', default='l1unstructure', type=str)
 parser.add_argument('--prune_sparsity', default=0.7, type=float)
-parser.add_argument('--defend', default="", type=str, help="'' if no defense, else ppb")
+parser.add_argument('--defend', default="dp", type=str, help="DPSGD algorithm")
 parser.add_argument('--adaptive', action='store_true')
 parser.add_argument('--shadow_num', default=5, type=int)
-parser.add_argument('--defend_arg', default=4, type=float)
+parser.add_argument('--defend_arg', default=1.0, type=float)
 
 
 def main(args):
@@ -47,6 +47,13 @@ def main(args):
     device = f"cuda:{args.device}"
     cudnn.benchmark = True
     prune_lr = args.lr
+
+    minibatch_size = args.batch_size
+    microbatch_size = args.batch_size // 8
+    dp_training_parameters = {
+        'minibatch_size': minibatch_size, 'l2_norm_clip': 1.0, 'noise_multiplier': args.defend_arg,
+        'microbatch_size': microbatch_size, 'lr': args.lr, 'weight_decay': args.weight_decay}
+
     if args.defend == "":
         prune_prefix = f"{args.pruner_name}_{args.prune_sparsity}"
     else:
@@ -104,32 +111,49 @@ def main(args):
         os.makedirs(pruned_model_save_folder)
 
     # prune victim model
-    if args.defend == "adv":
-        attack_model_type = "mia_fc"
-    else:
-        attack_model_type = ""
-
     victim_pruned_model = BaseModel(
         args.model_name, num_cls=args.num_cls, input_dim=args.input_dim, lr=prune_lr,
         weight_decay=args.weight_decay, save_folder=pruned_model_save_folder, device=device,
-        optimizer=args.optimizer, attack_model_type=attack_model_type)
+        optimizer=args.optimizer)
     victim_pruned_model.model.load_state_dict(org_state)
     pruner = get_pruner(args.pruner_name, victim_pruned_model.model, sparsity=args.prune_sparsity)
     victim_pruned_model.model = pruner.compress()
 
+    iterations = len(victim_train_dataset) // args.batch_size * args.epochs
+
+    victim_optimizer = optim.DPSGD(params=victim_pruned_model.model.parameters(), **dp_training_parameters)
+    # delta = 1e-5
+    # print('Achieves ({}, {})-DP'.format(
+    #     analysis.epsilon(
+    #         len(victim_train_dataset), args.batch_size, args.defend_arg,
+    #         iterations, delta
+    #     ),
+    #     delta,
+    # ))
+
     best_acc = 0
     count = 0
+    minibatch_loader, microbatch_loader = sampling.get_data_loaders(minibatch_size, microbatch_size, iterations)
+
+    victim_pruned_model.model.train()
     for epoch in range(args.prune_epochs):
+    # for epoch in range(1):
         pruner.update_epoch(epoch)
-        if args.defend == "":
-            train_acc, train_loss = victim_pruned_model.train(victim_train_loader, f"Epoch {epoch} Prune Train")
-        elif args.defend == "ppb":
-            train_acc, train_loss = victim_pruned_model.train_defend_ppb(
-                victim_train_loader, log_pref=f"Epoch {epoch} Victim Prune Train With PPB", defend_arg=args.defend_arg)
-        elif args.defend == "adv":
-            train_acc, train_loss = victim_pruned_model.train_defend_adv(
-                victim_train_loader, victim_dev_loader, log_pref=f"Epoch {epoch} Victim Prune Train With ADV",
-                privacy_theta=args.defend_arg)
+        total_loss = 0
+        total = 0
+        for X_minibatch, y_minibatch in minibatch_loader(victim_train_dataset):
+            victim_optimizer.zero_grad()
+            for X_microbatch, y_microbatch in microbatch_loader(TensorDataset(X_minibatch, y_minibatch)):
+                X_microbatch, y_microbatch = X_microbatch.to(device), y_microbatch.to(device)
+                victim_optimizer.zero_microbatch_grad()
+                loss = victim_pruned_model.criterion(victim_pruned_model.model(X_microbatch), y_microbatch)
+                loss.backward()
+                victim_optimizer.microbatch_step()
+                size = X_microbatch.size(0)
+                total_loss += loss.item() * size
+                total += size
+            victim_optimizer.step()
+        print(f"Epoch {epoch} Prune Train: Loss {total_loss/total}")
         dev_acc, dev_loss = victim_pruned_model.test(victim_dev_loader, f"Epoch {epoch} Prune Dev")
         test_acc, test_loss = victim_pruned_model.test(victim_test_loader, f"Epoch {epoch} Prune Test")
 
@@ -177,32 +201,42 @@ def main(args):
         # prune shadow models
         shadow_pruned_model = BaseModel(
             args.model_name, num_cls=args.num_cls, input_dim=args.input_dim, lr=prune_lr,
-            weight_decay=args.weight_decay, save_folder=pruned_shadow_model_save_folder, device=device,
-            optimizer=args.optimizer, attack_model_type=attack_model_type)
+            weight_decay=args.weight_decay,
+            save_folder=pruned_shadow_model_save_folder, device=device, optimizer=args.optimizer)
         shadow_pruned_model.model.load_state_dict(org_state)
         pruner = get_pruner(args.pruner_name, shadow_pruned_model.model, sparsity=args.prune_sparsity,)
         shadow_pruned_model.model = pruner.compress()
+
+        shadow_optimizer = optim.DPSGD(params=shadow_pruned_model.model.parameters(), **dp_training_parameters)
         best_acc = 0
         count = 0
+        minibatch_loader, microbatch_loader = sampling.get_data_loaders(minibatch_size, microbatch_size, iterations)
+
+        shadow_pruned_model.model.train()
         for epoch in range(args.prune_epochs):
             pruner.update_epoch(epoch)
-            if args.defend == "":
-                train_acc, train_loss = shadow_pruned_model.train(
-                    attack_train_loader, f"Epoch {epoch} Shadow Prune Train")
-            elif args.defend == "ppb":
-                train_acc, train_loss = shadow_pruned_model.train_defend_ppb(
-                    attack_train_loader, f"Epoch {epoch} Shadow Prune Train With PPB", defend_arg=args.defend_arg)
-            elif args.defend == "adv":
-                train_acc, train_loss = shadow_pruned_model.train_defend_adv(
-                    attack_train_loader, attack_dev_loader, log_pref=f"Epoch {epoch} Victim Prune Train With ADV",
-                    privacy_theta=args.defend_arg)
-            dev_acc, dev_loss = shadow_pruned_model.test(attack_dev_loader, f"Epoch {epoch} Shadow Prune Dev")
-            test_acc, test_loss = shadow_pruned_model.test(attack_test_loader, f"Epoch {epoch} Shadow Prune Test")
+            total_loss = 0
+            total = 0
+            for X_minibatch, y_minibatch in minibatch_loader(attack_train_dataset):
+                shadow_optimizer.zero_grad()
+                for X_microbatch, y_microbatch in microbatch_loader(TensorDataset(X_minibatch, y_minibatch)):
+                    X_microbatch, y_microbatch = X_microbatch.to(device), y_microbatch.to(device)
+                    shadow_optimizer.zero_microbatch_grad()
+                    loss = shadow_pruned_model.criterion(shadow_pruned_model.model(X_microbatch), y_microbatch)
+                    loss.backward()
+                    shadow_optimizer.microbatch_step()
+                    size = X_microbatch.size(0)
+                    total_loss += loss.item() * size
+                    total += size
+                shadow_optimizer.step()
+            print(f"Epoch {epoch} Prune Train: Loss {total_loss / total}")
+            dev_acc, dev_loss = shadow_pruned_model.test(attack_dev_loader, f"Epoch {epoch} Prune Dev")
+            test_acc, test_loss = shadow_pruned_model.test(attack_test_loader, f"Epoch {epoch} Prune Test")
 
             if dev_acc > best_acc:
                 best_acc = dev_acc
-                pruner.export_model(model_path=f"{pruned_shadow_model_save_folder}/best.pth",
-                                    mask_path=f"{pruned_shadow_model_save_folder}/best_mask.pth")
+                pruner.export_model(model_path=f"{pruned_model_save_folder}/best.pth",
+                                    mask_path=f"{pruned_model_save_folder}/best_mask.pth")
                 count = 0
             elif args.early_stop > 0:
                 count += 1
@@ -213,6 +247,7 @@ def main(args):
         shadow_prune_acc = test_acc
         shadow_acc_list.append(shadow_acc), shadow_prune_acc_list.append(shadow_prune_acc)
     return victim_acc, victim_prune_acc, np.mean(shadow_acc_list), np.mean(shadow_prune_acc_list)
+
 
 if __name__ == '__main__':
     args = parser.parse_args()

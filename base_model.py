@@ -6,7 +6,7 @@ from utils import get_model, get_optimizer, weight_init
 
 class BaseModel:
     def __init__(self, model_type, device="cuda", save_folder="", num_cls=10,
-                 optimizer="", lr=0.01, weight_decay=0, input_dim=100, epochs=0):
+                 optimizer="", lr=0.01, weight_decay=0, input_dim=100, epochs=0, attack_model_type=''):
         self.model = get_model(model_type, num_cls, input_dim)
         self.model.to(device)
         self.model.apply(weight_init)
@@ -20,6 +20,12 @@ class BaseModel:
         self.criterion = nn.CrossEntropyLoss()
         self.save_pref = save_folder
         self.num_cls = num_cls
+
+        if attack_model_type:
+            self.attack_model = get_model(attack_model_type, num_cls*2, 2)
+            self.attack_model.to(device)
+            self.attack_model.apply(weight_init)
+            self.attack_model_optim = get_optimizer("adam", self.attack_model.parameters(), lr=0.001, weight_decay=5e-4)
 
     def train(self, train_loader, log_pref=""):
         self.model.train()
@@ -85,6 +91,84 @@ class BaseModel:
         if log_pref:
             print("{}: Accuracy {:.3f}, Loss {:.3f}, Loss1 {:.3f}, Loss2 {:.3f}".format(
                 log_pref, acc, total_loss, total_loss1, total_loss2))
+        return acc, total_loss
+
+    def train_defend_adv(self, train_loader, test_loader, log_pref="", privacy_theta=1.0):
+        """
+        modified from
+        https://github.com/Lab41/cyphercat/blob/master/Defenses/Adversarial_Regularization.ipynb
+        """
+        total_loss = 0
+        correct = 0
+        total = 0
+        infer_iterations = 7
+        # train adversarial network
+
+        train_iter = iter(train_loader)
+        test_iter = iter(test_loader)
+        train_iter2 = iter(train_loader)
+
+        self.model.eval()
+        self.attack_model.train()
+        for infer_iter in range(infer_iterations):
+            with torch.no_grad():
+                try:
+                    inputs, targets = next(train_iter)
+                except StopIteration:
+                    train_iter = iter(train_loader)
+                    inputs, targets = next(train_iter)
+                inputs, targets = inputs.to(self.device), targets.to(self.device)
+                in_predicts = F.softmax(self.model(inputs), dim=-1)
+                in_targets = F.one_hot(targets, num_classes=self.num_cls).float()
+
+                try:
+                    inputs, targets = next(test_iter)
+                except StopIteration:
+                    test_iter = iter(test_loader)
+                    inputs, targets = next(test_iter)
+                inputs, targets = inputs.to(self.device), targets.to(self.device)
+                out_predicts = F.softmax(self.model(inputs), dim=-1)
+                out_targets = F.one_hot(targets, num_classes=self.num_cls).float()
+
+                infer_train_data = torch.cat([torch.cat([in_predicts, in_targets], dim=-1),
+                                              torch.cat([out_predicts, out_targets], dim=-1)], dim=0)
+                infer_train_label = torch.cat([torch.ones(in_predicts.size(0)),
+                                               torch.zeros(out_predicts.size(0))]).long().to(self.device)
+
+            self.attack_model_optim.zero_grad()
+            infer_loss = privacy_theta * F.cross_entropy(self.attack_model(infer_train_data), infer_train_label)
+            infer_loss.backward()
+            self.attack_model_optim.step()
+
+        self.model.train()
+        self.attack_model.eval()
+        try:
+            inputs, targets = next(train_iter2)
+        except StopIteration:
+            train_iter2 = iter(train_loader)
+            inputs, targets = next(train_iter2)
+        inputs, targets = inputs.to(self.device), targets.to(self.device)
+        self.optimizer.zero_grad()
+        outputs = self.model(inputs)
+        loss1 = self.criterion(outputs, targets)
+        in_predicts = F.softmax(outputs, dim=-1)
+        in_targets = F.one_hot(targets, num_classes=self.num_cls).float()
+        infer_data = torch.cat([in_predicts, in_targets], dim=-1)
+        infer_labels = torch.ones(targets.size(0)).long().to(self.device)
+        infer_loss = F.cross_entropy(self.attack_model(infer_data), infer_labels)
+        loss = loss1 - privacy_theta * infer_loss
+        loss.backward()
+        self.optimizer.step()
+        total_loss += loss.item() * targets.size(0)
+        total += targets.size(0)
+        _, predicted = outputs.max(1)
+        correct += predicted.eq(targets).sum().item()
+        if self.scheduler:
+            self.scheduler.step()
+        acc = 100. * correct / total
+        total_loss /= total
+        if log_pref:
+            print("{}: Accuracy {:.3f}, Loss {:.3f}".format(log_pref, acc, total_loss))
         return acc, total_loss
 
     def test(self, test_loader, log_pref=""):

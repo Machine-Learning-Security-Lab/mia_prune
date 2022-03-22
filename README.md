@@ -84,7 +84,9 @@ performs several threshold-based attacks including
   - Cross-entropy-based threshold attack (Xent).
   - Modified-entropy-based threshold attack (Mentr).
   - Top1 Confidence-based threshold attack (Top1-conf).
-- `defend` can be `""` (no defense, default) or `ppb` (PPB defense).
+- `defend` can be `""` (basic defense, default), `ppb` (PPB defense), or `adv` (Adversarial Regularization). 
+To run DP defense, please use `prune_dp.py`, where we use [pyvacy](https://github.com/ChrisWaites/pyvacy) to run 
+DPSGD in fine-tuning. 
 
 # Examples
 Train a CIFAR10 model using ResNet18 model on GPU0.
