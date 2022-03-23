@@ -36,7 +36,7 @@ parser.add_argument('--prune_sparsity', default=0.7, type=float)
 parser.add_argument('--defend', default="dp", type=str, help="DPSGD algorithm")
 parser.add_argument('--adaptive', action='store_true')
 parser.add_argument('--shadow_num', default=5, type=int)
-parser.add_argument('--defend_arg', default=1.0, type=float)
+parser.add_argument('--defend_arg', default=0.1, type=float)
 
 
 def main(args):
@@ -49,7 +49,7 @@ def main(args):
     prune_lr = args.lr
 
     minibatch_size = args.batch_size
-    microbatch_size = args.batch_size // 8
+    microbatch_size = args.batch_size // 2
     dp_training_parameters = {
         'minibatch_size': minibatch_size, 'l2_norm_clip': 1.0, 'noise_multiplier': args.defend_arg,
         'microbatch_size': microbatch_size, 'lr': args.lr, 'weight_decay': args.weight_decay}
