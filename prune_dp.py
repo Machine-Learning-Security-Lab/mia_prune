@@ -102,18 +102,18 @@ def main(args):
     victim_acc = test_acc
 
     print("Prune Victim Model")
-    pruned_model_save_folder = f"{save_folder}/{prune_prefix}_model"
+    pruned_victim_model_save_folder = f"{save_folder}/{prune_prefix}_model"
     victim_model_path = f"{victim_model_save_folder}/best.pth"
     victim_model.load(victim_model_path)
 
     org_state = copy.deepcopy(victim_model.model.state_dict())
-    if not os.path.exists(pruned_model_save_folder):
-        os.makedirs(pruned_model_save_folder)
+    if not os.path.exists(pruned_victim_model_save_folder):
+        os.makedirs(pruned_victim_model_save_folder)
 
     # prune victim model
     victim_pruned_model = BaseModel(
         args.model_name, num_cls=args.num_cls, input_dim=args.input_dim, lr=prune_lr,
-        weight_decay=args.weight_decay, save_folder=pruned_model_save_folder, device=device,
+        weight_decay=args.weight_decay, save_folder=pruned_victim_model_save_folder, device=device,
         optimizer=args.optimizer)
     victim_pruned_model.model.load_state_dict(org_state)
     pruner = get_pruner(args.pruner_name, victim_pruned_model.model, sparsity=args.prune_sparsity)
@@ -136,8 +136,8 @@ def main(args):
     minibatch_loader, microbatch_loader = sampling.get_data_loaders(minibatch_size, microbatch_size, iterations)
 
     victim_pruned_model.model.train()
-    for epoch in range(args.prune_epochs):
-    # for epoch in range(1):
+    # for epoch in range(args.prune_epochs):
+    for epoch in range(2):
         pruner.update_epoch(epoch)
         total_loss = 0
         total = 0
@@ -159,8 +159,8 @@ def main(args):
 
         if dev_acc > best_acc:
             best_acc = dev_acc
-            pruner.export_model(model_path=f"{pruned_model_save_folder}/best.pth",
-                                mask_path=f"{pruned_model_save_folder}/best_mask.pth")
+            pruner.export_model(model_path=f"{pruned_victim_model_save_folder}/best.pth",
+                                mask_path=f"{pruned_victim_model_save_folder}/best_mask.pth")
             count = 0
         elif args.early_stop > 0:
             count += 1
@@ -213,7 +213,8 @@ def main(args):
         minibatch_loader, microbatch_loader = sampling.get_data_loaders(minibatch_size, microbatch_size, iterations)
 
         shadow_pruned_model.model.train()
-        for epoch in range(args.prune_epochs):
+        # for epoch in range(args.prune_epochs):
+        for epoch in range(2):
             pruner.update_epoch(epoch)
             total_loss = 0
             total = 0
@@ -235,8 +236,8 @@ def main(args):
 
             if dev_acc > best_acc:
                 best_acc = dev_acc
-                pruner.export_model(model_path=f"{pruned_model_save_folder}/best.pth",
-                                    mask_path=f"{pruned_model_save_folder}/best_mask.pth")
+                pruner.export_model(model_path=f"{pruned_shadow_model_save_folder}/best.pth",
+                                    mask_path=f"{pruned_shadow_model_save_folder}/best_mask.pth")
                 count = 0
             elif args.early_stop > 0:
                 count += 1

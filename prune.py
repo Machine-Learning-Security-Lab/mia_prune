@@ -182,6 +182,7 @@ def main(args):
         shadow_pruned_model.model.load_state_dict(org_state)
         pruner = get_pruner(args.pruner_name, shadow_pruned_model.model, sparsity=args.prune_sparsity,)
         shadow_pruned_model.model = pruner.compress()
+
         best_acc = 0
         count = 0
         for epoch in range(args.prune_epochs):
@@ -213,6 +214,7 @@ def main(args):
         shadow_prune_acc = test_acc
         shadow_acc_list.append(shadow_acc), shadow_prune_acc_list.append(shadow_prune_acc)
     return victim_acc, victim_prune_acc, np.mean(shadow_acc_list), np.mean(shadow_prune_acc_list)
+
 
 if __name__ == '__main__':
     args = parser.parse_args()
