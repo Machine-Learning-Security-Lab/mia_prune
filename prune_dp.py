@@ -136,8 +136,7 @@ def main(args):
     minibatch_loader, microbatch_loader = sampling.get_data_loaders(minibatch_size, microbatch_size, iterations)
 
     victim_pruned_model.model.train()
-    # for epoch in range(args.prune_epochs):
-    for epoch in range(2):
+    for epoch in range(args.prune_epochs):
         pruner.update_epoch(epoch)
         total_loss = 0
         total = 0
@@ -213,8 +212,7 @@ def main(args):
         minibatch_loader, microbatch_loader = sampling.get_data_loaders(minibatch_size, microbatch_size, iterations)
 
         shadow_pruned_model.model.train()
-        # for epoch in range(args.prune_epochs):
-        for epoch in range(2):
+        for epoch in range(args.prune_epochs):
             pruner.update_epoch(epoch)
             total_loss = 0
             total = 0
