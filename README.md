@@ -1,8 +1,8 @@
 [comment]: <> (# mia_prune)
 # Membership Inference Attacks and Defenses in Neural Network Pruning
 
-This repository accompanies the paper "Membership Inference Attacks and Defenses in Neural Network Pruning", 
-accepted by USENIX Security 2022. The extended version can be found at [here](https://arxiv.org/abs/2202.03335).
+This repository accompanies the paper [Membership Inference Attacks and Defenses in Neural Network Pruning](https://www.usenix.org/conference/usenixsecurity22/presentation/yuan-xiaoyong), 
+accepted by USENIX Security 2022. The extended version can be found at [arXiv](https://arxiv.org/abs/2202.03335).
 The repository contains the main code of membership inference attacks and defenses in neural network pruning. 
 The code is tested on Python 3.8, Pytorch 1.8.1, and Ubuntu 18.04. 
 GPUs are needed to accelerate neural network training and membership inference attacks.
@@ -130,3 +130,13 @@ python mia.py 0 config/cifar10_resnet18.json --attacks samia,nn,nn_top3
 - [transformer.py](transformer.py) consists the self-attention model used in SAMIA attack.
 - [base_model.py](base_model.py) includes the code for training, testing, and defense.
 
+
+# Citation
+```
+@inproceedings{yuan2022membership,
+  title = {Membership Inference Attacks and Defenses in Neural Network Pruning},
+  booktitle = {31st USENIX Security Symposium (USENIX Security 22)},
+  author={Yuan, Xiaoyong and Zhang, Lan},
+  year={2022}
+}
+```
